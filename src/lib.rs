@@ -1,6 +1,8 @@
 #![feature(once_cell)]
 use std::{lazy::Lazy, sync::Mutex};
+use std::hash::Hash;
 use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
 
 struct BaseUnit {
     name: String,
@@ -51,7 +53,7 @@ fn unwrap_unum(obj: &PyAny) -> Unum {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 struct NumberUnit {
     u: Vec<i16>
 }
@@ -111,11 +113,6 @@ impl Unum {
         })
     }
 
-    #[inline]
-    fn __rmul__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__mul__(other)
-    }
-
     fn __div__(&self, other: &PyAny) -> PyResult<Unum> {
         let o = unwrap_unum(other);
         let mut unit_vec = vec![0; current_unit_count()];
@@ -129,6 +126,33 @@ impl Unum {
             val: self.val / o.val,
             unit: NumberUnit { u: unit_vec }
         })
+    }
+
+    fn __add__(&self, other: &Unum) -> PyResult<Unum> {
+        return if self.unit == other.unit {
+            Ok(Unum {
+                val: self.val + other.val,
+                unit: self.unit.clone()
+            })
+        } else {
+            Err(PyTypeError::new_err("unit mismatch"))
+        }
+    }
+
+    fn __sub__(&self, other: &Unum) -> PyResult<Unum> {
+        return if self.unit == other.unit {
+            Ok(Unum {
+                val: self.val - other.val,
+                unit: self.unit.clone()
+            })
+        } else {
+            Err(PyTypeError::new_err("unit mismatch"))
+        }
+    }
+
+    #[inline]
+    fn __rmul__(&self, other: &PyAny) -> PyResult<Unum> {
+        self.__mul__(other)
     }
 
     #[inline]
