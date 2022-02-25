@@ -9,7 +9,7 @@ struct BaseUnit {
 
 #[pyfunction]
 fn add_unit(name: String, long_name: String) -> PyResult<Unum> {
-    let mut len = 0;
+    let len: usize;
 
     unsafe {
         let mut units = UNITS.lock().unwrap();
@@ -30,10 +30,7 @@ fn add_unit(name: String, long_name: String) -> PyResult<Unum> {
     )
 }
 
-static mut UNITS: Lazy<Mutex<Vec<BaseUnit>>> = Lazy::new(|| Mutex::new(vec![
-    BaseUnit { name: "m".to_string(), long_name: "meter".to_string() },
-    BaseUnit { name: "s".to_string(), long_name: "second".to_string() },
-]));
+static mut UNITS: Lazy<Mutex<Vec<BaseUnit>>> = Lazy::new(|| Mutex::new(vec![]));
 
 fn current_unit_count() -> usize {
     unsafe {
@@ -41,6 +38,20 @@ fn current_unit_count() -> usize {
     }
 }
 
+#[inline]
+fn unwrap_unum(obj: &PyAny) -> Unum {
+    match obj.extract() {
+        Ok(u) => u,
+        Err(_) => {
+            Unum {
+                val: obj.extract().unwrap(),
+                unit: NumberUnit{ u: vec![] }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 struct NumberUnit {
     u: Vec<i16>
 }
@@ -68,6 +79,7 @@ impl ToString for NumberUnit {
 }
 
 #[pyclass]
+#[derive(Clone)]
 struct Unum {
     val: f64,
     unit: NumberUnit
@@ -84,36 +96,53 @@ impl Unum {
         Ok(self.val.to_string() + " [" + &*self.unit.to_string() + "]")
     }
 
-    fn __mul__(&self, other: &Unum) -> PyResult<Unum> {
+    fn __mul__(&self, other: &PyAny) -> PyResult<Unum> {
+        let o = unwrap_unum(other);
         let mut unit_vec = vec![0; current_unit_count()];
         for i in 0..self.unit.u.len() {
             unit_vec[i] = self.unit.u[i]
         }
-        for i in 0..other.unit.u.len() {
-            unit_vec[i] += other.unit.u[i]
+        for i in 0..o.unit.u.len() {
+            unit_vec[i] += o.unit.u[i]
         }
         Ok(Unum {
-            val: self.val * other.val,
-            unit: NumberUnit { u: unit_vec }
-        })
-    }
-
-    fn __div__(&self, other: &Unum) -> PyResult<Unum> {
-        let mut unit_vec = vec![0; current_unit_count()];
-        for i in 0..self.unit.u.len() {
-            unit_vec[i] = self.unit.u[i]
-        }
-        for i in 0..other.unit.u.len() {
-            unit_vec[i] -= other.unit.u[i]
-        }
-        Ok(Unum {
-            val: self.val / other.val,
+            val: self.val * o.val,
             unit: NumberUnit { u: unit_vec }
         })
     }
 
     #[inline]
-    fn __truediv__(&self, other: &Unum) -> PyResult<Unum> {
+    fn __rmul__(&self, other: &PyAny) -> PyResult<Unum> {
+        self.__mul__(other)
+    }
+
+    fn __div__(&self, other: &PyAny) -> PyResult<Unum> {
+        let o = unwrap_unum(other);
+        let mut unit_vec = vec![0; current_unit_count()];
+        for i in 0..self.unit.u.len() {
+            unit_vec[i] = self.unit.u[i]
+        }
+        for i in 0..o.unit.u.len() {
+            unit_vec[i] -= o.unit.u[i]
+        }
+        Ok(Unum {
+            val: self.val / o.val,
+            unit: NumberUnit { u: unit_vec }
+        })
+    }
+
+    #[inline]
+    fn __truediv__(&self, other: &PyAny) -> PyResult<Unum> {
+        self.__div__(other)
+    }
+
+    #[inline]
+    fn __rdiv__(&self, other: &PyAny) -> PyResult<Unum> {
+        self.__div__(other)
+    }
+
+    #[inline]
+    fn __rtruediv__(&self, other: &PyAny) -> PyResult<Unum> {
         self.__div__(other)
     }
 }
