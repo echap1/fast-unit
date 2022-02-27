@@ -1,5 +1,8 @@
+[project]
+name = "fast_unit"
+
 [tool.poetry]
-name = "untitled"
+name = "fast_unit"
 version = "0.1.0"
 description = ""
 authors = ["ethan <ethan.chapman0@outlook.com>"]

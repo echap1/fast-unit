@@ -1,5 +1,6 @@
 #![feature(once_cell)]
 use std::{lazy::Lazy, sync::Mutex};
+use std::cmp::min;
 use std::hash::Hash;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
@@ -53,9 +54,38 @@ fn unwrap_unum(obj: &PyAny) -> Unum {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 struct NumberUnit {
     u: Vec<i16>
+}
+
+impl PartialEq for NumberUnit {
+    fn eq(&self, other: &Self) -> bool {
+        let k = min(self.u.len(), other.u.len());
+        for i in 0..k {
+            if self.u[i] != other.u[i] {
+                return false
+            }
+        }
+        if self.u.len() > other.u.len() {
+            for i in (k + 1)..self.u.len() {
+                if self.u[i] != 0 {
+                    return false
+                }
+            }
+        } else if other.u.len() > self.u.len() {
+            for i in (k + 1)..other.u.len() {
+                if other.u[i] != 0 {
+                    return false
+                }
+            }
+        }
+        true
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !(self == other)
+    }
 }
 
 impl ToString for NumberUnit {
@@ -94,8 +124,21 @@ impl Unum {
         Unum { val, unit: NumberUnit{ u: vec![0; current_unit_count()] } }
     }
 
+    fn as_number(&self, u: &Unum) -> PyResult<f64> {
+        return if self.unit == u.unit {
+            Ok(self.val / u.val)
+        } else {
+            Err(PyTypeError::new_err("Unit Mismatch"))
+        }
+    }
+
     fn __str__(&self) -> PyResult<String> {
         Ok(self.val.to_string() + " [" + &*self.unit.to_string() + "]")
+    }
+
+    #[inline]
+    fn __repr__(&self) -> PyResult<String> {
+        self.__str__()
     }
 
     fn __mul__(&self, other: &PyAny) -> PyResult<Unum> {
@@ -135,7 +178,7 @@ impl Unum {
                 unit: self.unit.clone()
             })
         } else {
-            Err(PyTypeError::new_err("unit mismatch"))
+            Err(PyTypeError::new_err("Unit Mismatch"))
         }
     }
 
@@ -146,7 +189,7 @@ impl Unum {
                 unit: self.unit.clone()
             })
         } else {
-            Err(PyTypeError::new_err("unit mismatch"))
+            Err(PyTypeError::new_err("Unit Mismatch"))
         }
     }
 
