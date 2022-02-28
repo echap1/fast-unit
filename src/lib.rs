@@ -1,17 +1,18 @@
 #![feature(once_cell)]
-use std::{lazy::Lazy, sync::Mutex};
-use std::cmp::min;
-use std::hash::Hash;
 use pyo3::prelude::*;
-use pyo3::exceptions::PyTypeError;
 
-struct BaseUnit {
-    name: String,
-    long_name: String
-}
+mod number_unit;
+use number_unit::NumberUnit;
+
+mod unit_reg;
+use unit_reg::UNITS;
+
+mod unum;
+use unum::Unum;
+use unit_reg::BaseUnit;
 
 #[pyfunction]
-fn add_unit(name: String, long_name: String) -> PyResult<Unum> {
+pub(crate) fn add_unit(name: String, long_name: String) -> PyResult<Unum> {
     let len: usize;
 
     unsafe {
@@ -31,187 +32,6 @@ fn add_unit(name: String, long_name: String) -> PyResult<Unum> {
             }
         }
     )
-}
-
-static mut UNITS: Lazy<Mutex<Vec<BaseUnit>>> = Lazy::new(|| Mutex::new(vec![]));
-
-fn current_unit_count() -> usize {
-    unsafe {
-        *&UNITS.lock().unwrap().len()
-    }
-}
-
-#[inline]
-fn unwrap_unum(obj: &PyAny) -> Unum {
-    match obj.extract() {
-        Ok(u) => u,
-        Err(_) => {
-            Unum {
-                val: obj.extract().unwrap(),
-                unit: NumberUnit{ u: vec![] }
-            }
-        }
-    }
-}
-
-#[derive(Clone)]
-struct NumberUnit {
-    u: Vec<i16>
-}
-
-impl PartialEq for NumberUnit {
-    fn eq(&self, other: &Self) -> bool {
-        let k = min(self.u.len(), other.u.len());
-        for i in 0..k {
-            if self.u[i] != other.u[i] {
-                return false
-            }
-        }
-        if self.u.len() > other.u.len() {
-            for i in (k + 1)..self.u.len() {
-                if self.u[i] != 0 {
-                    return false
-                }
-            }
-        } else if other.u.len() > self.u.len() {
-            for i in (k + 1)..other.u.len() {
-                if other.u[i] != 0 {
-                    return false
-                }
-            }
-        }
-        true
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        !(self == other)
-    }
-}
-
-impl ToString for NumberUnit {
-    fn to_string(&self) -> String {
-        let mut numerator: String = "".to_string();
-        let mut denominator: String = "".to_string();
-        for (i, p) in self.u.iter().enumerate() {
-            if *p == 0 { continue; }
-            unsafe {
-                let n = &UNITS.lock().unwrap()[i].name;
-                if *p == 1 { numerator += n }
-                else if *p == -1 { denominator += n }
-                else if *p > 1 { numerator += &*(n.to_owned() + &p.to_string()) }
-                else { denominator += &*(n.to_owned() + &(-p).to_string()) }
-            }
-        }
-        return if denominator == "" {
-            numerator
-        } else {
-            numerator + "/" + &*denominator
-        }
-    }
-}
-
-#[pyclass]
-#[derive(Clone)]
-struct Unum {
-    val: f64,
-    unit: NumberUnit
-}
-
-#[pymethods]
-impl Unum {
-    #[new]
-    fn new(val: f64) -> Self {
-        Unum { val, unit: NumberUnit{ u: vec![0; current_unit_count()] } }
-    }
-
-    fn as_number(&self, u: &Unum) -> PyResult<f64> {
-        return if self.unit == u.unit {
-            Ok(self.val / u.val)
-        } else {
-            Err(PyTypeError::new_err("Unit Mismatch"))
-        }
-    }
-
-    fn __str__(&self) -> PyResult<String> {
-        Ok(self.val.to_string() + " [" + &*self.unit.to_string() + "]")
-    }
-
-    #[inline]
-    fn __repr__(&self) -> PyResult<String> {
-        self.__str__()
-    }
-
-    fn __mul__(&self, other: &PyAny) -> PyResult<Unum> {
-        let o = unwrap_unum(other);
-        let mut unit_vec = vec![0; current_unit_count()];
-        for i in 0..self.unit.u.len() {
-            unit_vec[i] = self.unit.u[i]
-        }
-        for i in 0..o.unit.u.len() {
-            unit_vec[i] += o.unit.u[i]
-        }
-        Ok(Unum {
-            val: self.val * o.val,
-            unit: NumberUnit { u: unit_vec }
-        })
-    }
-
-    fn __div__(&self, other: &PyAny) -> PyResult<Unum> {
-        let o = unwrap_unum(other);
-        let mut unit_vec = vec![0; current_unit_count()];
-        for i in 0..self.unit.u.len() {
-            unit_vec[i] = self.unit.u[i]
-        }
-        for i in 0..o.unit.u.len() {
-            unit_vec[i] -= o.unit.u[i]
-        }
-        Ok(Unum {
-            val: self.val / o.val,
-            unit: NumberUnit { u: unit_vec }
-        })
-    }
-
-    fn __add__(&self, other: &Unum) -> PyResult<Unum> {
-        return if self.unit == other.unit {
-            Ok(Unum {
-                val: self.val + other.val,
-                unit: self.unit.clone()
-            })
-        } else {
-            Err(PyTypeError::new_err("Unit Mismatch"))
-        }
-    }
-
-    fn __sub__(&self, other: &Unum) -> PyResult<Unum> {
-        return if self.unit == other.unit {
-            Ok(Unum {
-                val: self.val - other.val,
-                unit: self.unit.clone()
-            })
-        } else {
-            Err(PyTypeError::new_err("Unit Mismatch"))
-        }
-    }
-
-    #[inline]
-    fn __rmul__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__mul__(other)
-    }
-
-    #[inline]
-    fn __truediv__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__div__(other)
-    }
-
-    #[inline]
-    fn __rdiv__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__div__(other)
-    }
-
-    #[inline]
-    fn __rtruediv__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__div__(other)
-    }
 }
 
 #[pymodule]

@@ -9,9 +9,14 @@ authors = ["ethan <ethan.chapman0@outlook.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+maturin = "^0.12.9"
 
 [tool.poetry.dev-dependencies]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=0.12,<0.13"]
+build-backend = "maturin"
+
+[tool.maturin]
+bindings = "cffi"
+compatibility = "linux"
