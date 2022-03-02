@@ -6,7 +6,7 @@ for use in Python-based FRC robot code.
 ## Building and Installing for Local Machine
 
 ```shell
-maturin build --release  # This will generate wheels and put a native library in ./fast_unit/
+maturin develop --release  # This will generate wheels and put a native library in ./fast_unit/
 pip install .  # Installs to your python interpreter
 ```
 
