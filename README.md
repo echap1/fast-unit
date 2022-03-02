@@ -10,7 +10,7 @@ maturin develop --release  # This will generate wheels and put a native library 
 pip install .  # Installs to your python interpreter
 ```
 
-## Cross Compilation for RoboRIO (WIP)
+## Cross Compilation for RoboRIO
 
 ### Getting Required Files
 
