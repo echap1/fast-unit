@@ -14,4 +14,4 @@ mile = 1609.34 * m
 
 ms = s / 1000
 minute = s * 60
-hour = m * 60
+hour = minute * 60

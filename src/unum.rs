@@ -73,12 +73,16 @@ impl Unum {
 
     #[inline]
     fn __rdiv__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__div__(other)
+        let o = unwrap_unum(other);
+        Ok(Unum {
+            val: o.val / self.val,
+            unit: o.unit.sub(&self.unit)
+        })
     }
 
     #[inline]
     fn __rtruediv__(&self, other: &PyAny) -> PyResult<Unum> {
-        self.__div__(other)
+        self.__rdiv__(other)
     }
 
 
@@ -203,6 +207,49 @@ impl Unum {
             }
         } else {
             Err(PyTypeError::new_err("Should be Unitless"))
+        }
+    }
+
+
+    // --- equality operators ---
+
+    fn __lt__(&self, o: &Unum) -> PyResult<bool> {
+        return if self.unit == o.unit {
+            Ok(self.val < o.val)
+        } else {
+            Err(PyTypeError::new_err("Unit Mismatch"))
+        }
+    }
+
+    fn __le__(&self, o: &Unum) -> PyResult<bool> {
+        return if self.unit == o.unit {
+            Ok(self.val <= o.val)
+        } else {
+            Err(PyTypeError::new_err("Unit Mismatch"))
+        }
+    }
+
+    fn __eq__(&self, o: &Unum) -> PyResult<bool> {
+        return if self.unit == o.unit {
+            Ok(self.val == o.val)
+        } else {
+            Err(PyTypeError::new_err("Unit Mismatch"))
+        }
+    }
+
+    fn __ne__(&self, o: &Unum) -> PyResult<bool> {
+        return if self.unit == o.unit {
+            Ok(self.val != o.val)
+        } else {
+            Err(PyTypeError::new_err("Unit Mismatch"))
+        }
+    }
+
+    fn __ge__(&self, o: &Unum) -> PyResult<bool> {
+        return if self.unit == o.unit {
+            Ok(self.val >= o.val)
+        } else {
+            Err(PyTypeError::new_err("Unit Mismatch"))
         }
     }
 }

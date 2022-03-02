@@ -97,7 +97,11 @@ impl ToString for NumberUnit {
         return if denominator == "" {
             numerator
         } else {
-            numerator + "/" + &*denominator
+            if numerator == "" {
+                "1/".to_owned() + &*denominator
+            } else {
+                numerator + "/" + &*denominator
+            }
         }
     }
 }
