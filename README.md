@@ -14,8 +14,8 @@ pip install .  # Installs to your python interpreter
 
 ### Getting Required Files
 
-In order to compile for RoboRIO, you need to copy the contents of `/usr/local/lib` and
-update the `RIO_ROOT` to reflect where you copied them. This is assuming you have already
+In order to compile for RoboRIO, you need to copy the contents of `/usr/local/lib` off of your RIO and
+update the `RIO_ROOT` to reflect where you copied them to. This is assuming you have already
 installed python on your RIO using [RobotPy](https://robotpy.readthedocs.io/en/stable/).
 
 This is the command I used to accomplish this:
